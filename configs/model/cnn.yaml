@@ -1,0 +1,4 @@
+name: cnn
+num_pitches: 88
+channels: [32, 64, 128, 256]
+dropout: 0.3

@@ -1,0 +1,23 @@
+defaults:
+  - audio: mel
+  - model: cnn
+  - _self_
+
+paths:
+  cache_dir: /content/drive/MyDrive/amt-project/cache
+  checkpoint_dir: /content/drive/MyDrive/amt-project/checkpoints
+
+train:
+  batch_size: 16
+  lr: 3e-4
+  weight_decay: 1e-4
+  epochs: 50
+  patience: 10
+  pos_weight: 10.0
+  sequence_length: 160
+  num_workers: 4
+  onset_weight: 1.0
+
+wandb:
+  project: amt-project
+  entity: null

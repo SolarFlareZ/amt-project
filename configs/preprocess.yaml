@@ -1,0 +1,7 @@
+defaults:
+  - audio: mel
+  - _self_
+
+paths:
+  maestro_dir: /path/to/maestro-v3.0.0
+  cache_dir: ./cache

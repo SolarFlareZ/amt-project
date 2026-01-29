@@ -1,0 +1,11 @@
+torch
+torchaudio
+lightning
+hydra-core
+omegaconf
+wandb
+optuna
+pretty_midi
+mir_eval
+audiomentations
+rich
