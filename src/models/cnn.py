@@ -19,8 +19,8 @@ class PianoCNN(nn.Module):
         super().__init__()
         
         self.conv_blocks = nn.ModuleList([
-            ConvBlock(1, channels[0], pool_size=(2, 2)),
-            ConvBlock(channels[0], channels[1], pool_size=(2, 2)),
+            ConvBlock(1, channels[0], pool_size=(2, 1)),
+            ConvBlock(channels[0], channels[1], pool_size=(2, 1)),
             ConvBlock(channels[1], channels[2], pool_size=(2, 1)),
             ConvBlock(channels[2], channels[3], pool_size=(2, 1)),
         ])
