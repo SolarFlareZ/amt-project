@@ -1,5 +1,7 @@
 torch
 torchaudio
+torchcodec
+
 lightning
 hydra-core
 omegaconf
@@ -7,5 +9,9 @@ wandb
 optuna
 pretty_midi
 mir_eval
-audiomentations
-rich
+# audiomentations
+# rich
+pandas
+numpy
+matplotlib
+tqdm
