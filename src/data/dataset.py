@@ -11,9 +11,9 @@ class MAESTRODataset(Dataset):
         self.files = sorted(list(self.split_dir.glob("*.pt")))
         
         if len(self.files) == 0:
-            raise ValueError(f"No .pt files found in {self.split_dir}")
+            raise ValueError(f"No .pt files in {self.split_dir}")
         
-        # Load normalization stats
+        # get norm stats
         stats = torch.load(self.cache_dir / "stats.pt")
         self.mean = stats["mean"]
         self.std = stats["std"]
@@ -27,7 +27,7 @@ class MAESTRODataset(Dataset):
         frame_labels = data["frame_labels"]
         onset_labels = data["onset_labels"]
         
-        # Normalize
+        # norm
         spec = (spec - self.mean[:, None]) / (self.std[:, None] + 1e-8)
         
         num_frames = spec.shape[-1]

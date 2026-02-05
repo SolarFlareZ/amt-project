@@ -4,9 +4,7 @@ from pathlib import Path
 import torch
 import pandas as pd
 from tqdm import tqdm
-import sys
 from pathlib import Path
-sys.path.append(str(Path(__file__).parent.parent))
 
 
 from src.data.transforms import AudioTransform
@@ -23,7 +21,7 @@ def main(cfg: DictConfig):
     audio_transform = AudioTransform(cfg.audio)
     midi_labels = MIDILabels(cfg.audio)
     
-    # First pass: save spectrograms (without normalization)
+    # without norm first
     for split in ["train", "validation", "test"]:
 
         split_dir = cache_dir / split
@@ -47,8 +45,8 @@ def main(cfg: DictConfig):
                 "onset_labels": torch.from_numpy(onset_labels),
             }, split_dir / save_name)
     
-    # Second pass: compute stats from training set only
-    print("Computing normalization statistics...")
+    # calculate norm
+    print("Computing normalizations...")
     train_files = list((cache_dir / "train").glob("*.pt"))
     
     n_bins = cfg.audio.n_mels if cfg.audio.name == "mel" else cfg.audio.n_bins
@@ -66,7 +64,7 @@ def main(cfg: DictConfig):
     std = torch.sqrt(total_sq_sum / total_frames - mean ** 2)
     
     torch.save({"mean": mean, "std": std}, cache_dir / "stats.pt")
-    print(f"Done! Stats saved to {cache_dir / 'stats.pt'}")
+    print(f"Stats saved to {cache_dir / 'stats.pt'}")
 
 
 if __name__ == "__main__":

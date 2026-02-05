@@ -16,6 +16,7 @@ dependencies = [
     "numpy",
     "matplotlib",
     "tqdm",
+    "librosa",
 ]
 
 [build-system]

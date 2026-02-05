@@ -18,14 +18,14 @@ class MIDILabels:
         onset_labels = np.zeros((num_frames, NUM_MIDI_PITCHES), dtype=np.float32)
 
         for instrument in midi.instruments:
-            if instrument.is_drum: continue # if i want to extend it
+            if instrument.is_drum: continue # shoulnt be in maestro, more if i want to extend later
 
             for note in instrument.notes:
                 if note.pitch < MIN_MIDI_PITCH or note.pitch > MAX_MIDI_PITCH:
                     continue
 
                 pitch_i = note.pitch - MIN_MIDI_PITCH
-                start_frame = int(note.start * self.fps)
+                start_frame = int(note.start * self.fps) # TODO maybe round instead
                 end_frame = int(note.end * self.fps)
 
                 # clamping if outside valid range

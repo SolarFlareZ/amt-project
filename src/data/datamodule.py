@@ -52,7 +52,7 @@ class MAESTRODataModule(L.LightningDataModule):
     def test_dataloader(self):
         return DataLoader(
             self.test_dataset,
-            batch_size=1,  # full sequences, variable length
+            batch_size=1,
             shuffle=False,
             num_workers=self.num_workers
         )
