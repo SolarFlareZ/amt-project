@@ -16,3 +16,4 @@ numpy
 matplotlib
 tqdm
 librosa
+optuna-integration[pytorch_lightning]

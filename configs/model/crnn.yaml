@@ -1,7 +1,12 @@
 name: crnn
 num_pitches: 88
-channels: [32, 64, 128, 256]
+channels: [64, 128, 256, 512]
+pool_sizes: [[2,1], [2,1], [2,1], [1,1]]
 dropout: 0.3
+use_residual: false
 lstm_hidden: 256
 lstm_layers: 2
 bidirectional: true
+projection_dim: 512
+pretrained_cnn_path: null
+freeze_backbone: false

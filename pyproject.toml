@@ -17,6 +17,8 @@ dependencies = [
     "matplotlib",
     "tqdm",
     "librosa",
+    "optuna-integration[pytorch_lightning]",
+    "torchcodec",
 ]
 
 [build-system]

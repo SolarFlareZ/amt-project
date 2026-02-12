@@ -7,9 +7,10 @@ from src.models.crnn import PianoCRNN
 
 
 class AMTLightningModule(L.LightningModule):
-    def __init__(self, n_bins, model_type="cnn", num_pitches=88, channels=[32, 64, 128, 256], 
-                 lstm_hidden=256, lstm_layers=2, dropout=0.3, bidirectional=True,
-                 lr=3e-4, weight_decay=1e-4, pos_weight=10.0, onset_weight=1.0):
+    def __init__(self, n_bins, model_type="cnn", num_pitches=88, channels=[32, 64, 128, 256],
+                pool_sizes=None, lstm_hidden=256, lstm_layers=2, dropout=0.3, bidirectional=True,
+                use_residual=False, projection_dim=512, lr=3e-4, weight_decay=1e-4, 
+                pos_weight=10.0, onset_weight=1.0):
         super().__init__()
         self.save_hyperparameters()
         
@@ -18,20 +19,25 @@ class AMTLightningModule(L.LightningModule):
                 n_bins=n_bins,
                 num_pitches=num_pitches,
                 channels=channels,
-                dropout=dropout
+                pool_sizes=pool_sizes,
+                dropout=dropout,
+                use_residual=use_residual
             )
         elif model_type == "crnn":
             self.model = PianoCRNN(
                 n_bins=n_bins,
                 num_pitches=num_pitches,
                 channels=channels,
+                pool_sizes=pool_sizes,
                 lstm_hidden=lstm_hidden,
                 lstm_layers=lstm_layers,
                 dropout=dropout,
-                bidirectional=bidirectional
+                bidirectional=bidirectional,
+                use_residual=use_residual,
+                projection_dim=projection_dim
             )
         else:
-            raise ValueError(f"Unknown model type: {model_type}")
+            raise ValueError(f"invalid model type: {model_type}")
         
         self.model_type = model_type
         self.onset_weight = onset_weight
@@ -58,8 +64,8 @@ class AMTLightningModule(L.LightningModule):
             frame_loss = self.loss_fn(frame_logits, frame_labels)
             onset_loss = self.loss_fn(onset_logits, onset_labels)
             loss = frame_loss + self.onset_weight * onset_loss
-        
-        # Frame metrics
+
+        # frame level
         with torch.no_grad():
             preds = torch.sigmoid(frame_logits) > 0.5
             tp = ((preds == 1) & (frame_labels == 1)).sum()
@@ -82,22 +88,22 @@ class AMTLightningModule(L.LightningModule):
     def training_step(self, batch, batch_idx):
         metrics = self._shared_step(batch)
         
-        self.log("train/loss", metrics["loss"], prog_bar=True)
-        self.log("train/frame_loss", metrics["frame_loss"])
-        self.log("train/onset_loss", metrics["onset_loss"])
-        self.log("train/f1", metrics["f1"], prog_bar=True)
+        self.log("train_loss", metrics["loss"], prog_bar=True)
+        self.log("train_frame_loss", metrics["frame_loss"])
+        self.log("train_onset_loss", metrics["onset_loss"])
+        self.log("train_f1", metrics["f1"], prog_bar=True)
         
         return metrics["loss"]
     
     def validation_step(self, batch, batch_idx):
         metrics = self._shared_step(batch)
         
-        self.log("val/loss", metrics["loss"], prog_bar=True)
-        self.log("val/frame_loss", metrics["frame_loss"])
-        self.log("val/onset_loss", metrics["onset_loss"])
-        self.log("val/precision", metrics["precision"])
-        self.log("val/recall", metrics["recall"])
-        self.log("val/f1", metrics["f1"], prog_bar=True)
+        self.log("val_loss", metrics["loss"], prog_bar=True)
+        self.log("val_frame_loss", metrics["frame_loss"])
+        self.log("val_onset_loss", metrics["onset_loss"])
+        self.log("val_precision", metrics["precision"])
+        self.log("val_recall", metrics["recall"])
+        self.log("val_f1", metrics["f1"], prog_bar=True)
     
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(
@@ -112,6 +118,6 @@ class AMTLightningModule(L.LightningModule):
             "optimizer": optimizer,
             "lr_scheduler": {
                 "scheduler": scheduler,
-                "monitor": "val/f1"
+                "monitor": "val_f1"
             }
         }

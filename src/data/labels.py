@@ -25,7 +25,7 @@ class MIDILabels:
                     continue
 
                 pitch_i = note.pitch - MIN_MIDI_PITCH
-                start_frame = int(note.start * self.fps) # TODO maybe round instead
+                start_frame = int(note.start * self.fps) # TODO maybe round instead?
                 end_frame = int(note.end * self.fps)
 
                 # clamping if outside valid range

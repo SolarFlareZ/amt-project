@@ -25,7 +25,7 @@ class AudioTransform:
                 hop_length=cfg.hop_length
             )
         elif cfg.name == "cqt":
-            # Using librosa immedietly in __call__
+            # librosa is sed in call
             self.spec_transform = None
         else:
             raise ValueError(f"Invalid transform: {cfg.name}")

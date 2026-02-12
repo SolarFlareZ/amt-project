@@ -1,7 +1,9 @@
 defaults:
-  - audio: mel
+  - audio: cqt
   - _self_
 
+dataset: maestro
+
 paths:
-  maestro_dir: /path/to/maestro-v3.0.0
+  dataset_dir: /path/to/dataset
   cache_dir: ./cache

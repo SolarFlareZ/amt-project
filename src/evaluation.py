@@ -1,8 +1,9 @@
 import torch
 import numpy as np
+import mir_eval
+from src.postprocess import decode_notes
 
-
-def optimize_threshold(model, dataloader, device, thresholds=np.arange(0.1, 0.9, 0.05)):
+def optimize_threshold(model, dataloader, device, thresholds=np.arange(0.1, 0.9, 0.05), use_chunks=False): #use chunks for stft
     model.eval()
     model.to(device)
     
@@ -11,14 +12,20 @@ def optimize_threshold(model, dataloader, device, thresholds=np.arange(0.1, 0.9,
     
     with torch.no_grad():
         for batch in dataloader:
-            spec = batch["spec"].to(device)
+            spec = batch["spec"]
             labels = batch["frame_labels"]
             
-            logits = model(spec)
-            preds = torch.sigmoid(logits).cpu()
+            if use_chunks:
+                result = chunked_inference(model, spec, device)
+                preds = result["frame"]
+            else:
+                spec = spec.to(device)
+                out = model(spec)
+                frame_logits = get_frame_logits(out)
+                preds = torch.sigmoid(frame_logits).cpu()
             
-            all_preds.append(preds)
-            all_labels.append(labels)
+            all_preds.append(preds.reshape(-1))
+            all_labels.append(labels.reshape(-1))
     
     all_preds = torch.cat(all_preds, dim=0)
     all_labels = torch.cat(all_labels, dim=0)
@@ -44,7 +51,7 @@ def optimize_threshold(model, dataloader, device, thresholds=np.arange(0.1, 0.9,
     return best_threshold, best_f1
 
 
-def evaluate_frame_metrics(model, dataloader, device, threshold=0.5):
+def evaluate_frame_metrics(model, dataloader, device, threshold=0.5, use_chunks=False):
     model.eval()
     model.to(device)
     
@@ -52,11 +59,21 @@ def evaluate_frame_metrics(model, dataloader, device, threshold=0.5):
     
     with torch.no_grad():
         for batch in dataloader:
-            spec = batch["spec"].to(device)
-            labels = batch["frame_labels"].to(device)
+            spec = batch["spec"]
+            labels = batch["frame_labels"]
             
-            logits = model(spec)
-            preds = (torch.sigmoid(logits) > threshold).float()
+            if use_chunks:
+                result = chunked_inference(model, spec, device)
+                preds = (result["frame"] > threshold).float()
+            else:
+                spec = spec.to(device)
+                labels = labels.to(device)
+                out = model(spec)
+                frame_logits = get_frame_logits(out)
+                preds = (torch.sigmoid(frame_logits) > threshold).float()
+            
+            preds = preds.reshape(-1)
+            labels = labels.reshape(-1)
             
             total_tp += ((preds == 1) & (labels == 1)).sum().item()
             total_fp += ((preds == 1) & (labels == 0)).sum().item()
@@ -69,8 +86,52 @@ def evaluate_frame_metrics(model, dataloader, device, threshold=0.5):
     return {"precision": precision, "recall": recall, "f1": f1}
 
 
-
-
+def evaluate_note_level_dataset(model, dataloader, device, threshold, fps, use_chunks=False):
+    
+    
+    model.eval()
+    model.to(device)
+    
+    all_onset_f1 = []
+    all_offset_f1 = []
+    
+    with torch.no_grad():
+        for batch in dataloader:
+            spec = batch["spec"]
+            frame_labels = batch["frame_labels"].numpy()
+            onset_labels = batch["onset_labels"].numpy()
+            
+            if use_chunks:
+                result = chunked_inference(model, spec, device)
+                frame_probs = result["frame"].numpy()
+                onset_probs = result.get("onset", result["frame"]).numpy()
+            else:
+                spec = spec.to(device)
+                out = model(spec)
+                frame_probs = torch.sigmoid(get_frame_logits(out)).cpu().numpy()
+                onset_probs = torch.sigmoid(out["onset"]).cpu().numpy() if isinstance(out, dict) else frame_probs
+            
+            for i in range(frame_probs.shape[0]):
+                pred_notes = decode_notes(
+                    frame_probs[i], onset_probs[i],
+                    frame_thresh=threshold, onset_thresh=threshold,
+                    fps=fps
+                )
+                ref_notes = extract_ref_notes_from_labels(
+                    frame_labels[i], onset_labels[i], fps=fps
+                )
+                
+                if len(pred_notes) == 0 or len(ref_notes) == 0:
+                    continue
+                
+                metrics = evaluate_note_level(pred_notes, ref_notes)
+                all_onset_f1.append(metrics["onset_f1"])
+                all_offset_f1.append(metrics["offset_f1"])
+    
+    return {
+        "onset_f1": np.mean(all_onset_f1) if all_onset_f1 else 0.0,
+        "offset_f1": np.mean(all_offset_f1) if all_offset_f1 else 0.0
+    }
 
 
 # NOT YET ADDED TO SCRIPT
@@ -142,3 +203,37 @@ def extract_ref_notes_from_labels(frame_labels, onset_labels, fps=31.25):
             notes.append((midi_pitch, onset_time, offset_time))
     
     return notes
+
+
+
+
+def get_frame_logits(model_out):
+    if isinstance(model_out, dict):
+        return model_out["frame"]
+    return model_out
+
+
+
+
+
+def chunked_inference(model, spec, device, chunk_size=1000): #used for stft
+    num_frames = spec.shape[-1]
+    frame_preds = []
+    onset_preds = []
+    
+    for start in range(0, num_frames, chunk_size):
+        end = min(start + chunk_size, num_frames)
+        chunk = spec[:, :, start:end].to(device)
+        out = model(chunk)
+        
+        frame_logits = get_frame_logits(out)
+        frame_preds.append(torch.sigmoid(frame_logits).cpu())
+        
+        if isinstance(out, dict) and "onset" in out:
+            onset_preds.append(torch.sigmoid(out["onset"]).cpu())
+    
+    result = {"frame": torch.cat(frame_preds, dim=1)}
+    if onset_preds:
+        result["onset"] = torch.cat(onset_preds, dim=1)
+    
+    return result
